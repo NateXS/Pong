@@ -12,6 +12,8 @@
 	"files.associations": {
 		"assert.h": "c",
 		"atomic": "cpp",
-		"new": "cpp"
+		"new": "cpp",
+		"iosfwd": "cpp",
+		"xlocbuf": "cpp"
 	}
 }

@@ -7,7 +7,7 @@ using namespace std;
 #include <cmath>
 #include "3ds-libs\include\audio\OggAudioPlayer.h"
 #include "3ds-libs/include/Console.h"
-//#include <cmath.h>
+//#include "3ds-libs/include/renderable/Sprite.h"
 
 #define SCREEN_WIDTH  400
 #define SCREEN_HEIGHT 240
@@ -15,7 +15,6 @@ using namespace std;
 // C:/Users/Wiz/Documents/CodingProjects/20GamesChallenge/Pong
 
 // time for text rendering!! 😋
-
 C2D_TextBuf StaticTextBuffer;
 C2D_Text StaticText[2];
 C2D_Font font;
@@ -56,18 +55,50 @@ static void freeText(){
 	C2D_FontFree(font);
 }
 
+// YIPPIEE SPRITE RENDERING TIME!!! 🤯🤯🧪
+#define MAX_SPRITES 768
+
+// sprite struct
+typedef struct
+{
+	C2D_Sprite spr;
+} Sprite;
+
+static C2D_SpriteSheet spriteSheet;
+static Sprite sprites[MAX_SPRITES];
+static size_t numSprites = MAX_SPRITES/2;
+
+static void initSprite(int spriteNum){
+	size_t numImages = C2D_SpriteSheetCount(spriteSheet);
+	Sprite* sprite = &sprites[spriteNum];
+	//load sprite
+	C2D_SpriteFromSheet(&sprite->spr,spriteSheet,spriteNum);
+	C2D_SpriteSetCenter(&sprite->spr, 0.5f, 0.5f);
+	C2D_SpriteSetPos(&sprite->spr,SCREEN_WIDTH/2,SCREEN_HEIGHT/2);
+
+}
+
+
+
 class Ball{
-private:
-u32 clrWhite = C2D_Color32f(1,1,1,1);
 public:
 
-int x,y;
+u32 clrWhite = C2D_Color32f(1,1,1,1);
+u32 clrShadow = C2D_Color32f(0.38,0.03,0.45,0.1);
+const char* phsPath = "romfs:/paddle_hit.ogg";
+const char* whsPath = "romfs:/wall_hit.ogg";
+OggAudioPlayer* paddleHitSound = new OggAudioPlayer(const_cast<char*>(phsPath));
+OggAudioPlayer* wallHitSound = new OggAudioPlayer(const_cast<char*>(whsPath));
+
+float x,y;
 int radius;
 float speedX,speedY;
+float boost = 1;
 bool scored = false;
 bool enemyHit = false;
+bool ballHit = false;
 
-void CheckCollision(int colX1,int colX2,int colY1,int colY2){
+bool CheckCollision(int colX1,int colX2,int colY1,int colY2){
 	// if ball gets hit by a paddle
 	if( (x >= colX1) && (x <= colX2) && (y >= colY1) && (y <= colY2) ){
 
@@ -78,33 +109,52 @@ void CheckCollision(int colX1,int colX2,int colY1,int colY2){
 		else {
 			speedX *= -1;
 			enemyHit = true;
+			
 			}
-		
-		// if (speedX > 0) speedX += 0.03;
-		// else speedX -= 0.03;
-		// if (speedY > 0) speedY += 0.03;
-		// else speedY -= 0.03;
-		
-		
+			boost = 1.5;
+			ballHit = true;
+			UpdatePosition();
+			paddleHitSound->play();
+			return true;
 	}
-	//if(y <= colY1 && y >= colY2) speedY *= -1;
+	return false;
 
 }
 
 void Draw(){
+	float sizeX = radius*2+abs(((x - (SCREEN_WIDTH / 2)) / 20));
+	float sizeY = radius*2+abs(((y - (SCREEN_HEIGHT / 2)) / 30));
+	C2D_DrawEllipseSolid(x-(sizeX / 2) - ((x - (SCREEN_WIDTH / 2)) / 10),y-(sizeY / 2)-((y - (SCREEN_HEIGHT / 2)) / 10),0,sizeX,sizeY,clrShadow);
 	C2D_DrawCircleSolid(x,y,0,radius,clrWhite);
 }
 
 void UpdatePosition(){
 	scored = false;
-	enemyHit = false;
-	x += speedX;
-	y += speedY;
-	if(y + radius >= SCREEN_HEIGHT || y  - radius<= 0) speedY *= -1;
+	x += speedX * boost;
+	y += speedY * boost;
+	if(y + radius >= SCREEN_HEIGHT || y  - radius<= 0) {
+		speedY *= -1;
+		wallHitSound->play();
+	}
 	if(x + radius >= SCREEN_WIDTH || x - radius <= 0) {
+		wallHitSound->play();
 		speedX *= -1;
 		scored = true;
 		}
+	
+		 if(boost > 1){
+		 	boost -= 0.015;
+		 }
+		 if(boost < 1){
+			boost = 1;
+		 }
+
+		 clrWhite = C2D_Color32f(1,1  - (boost - 1),1,1);
+	}
+
+	int sign(float num){
+		if(num >= 0) return 1;
+		else return -1;
 	}
 
 };
@@ -119,7 +169,9 @@ protected:
 	}
 
 	void getCollisionPoints() {
-		colX1 = x - 15;
+		if(x - (SCREEN_WIDTH / 2) <= 0) colX1 = x - 15;
+		else colX1 = x;
+		
 		colX2 = x + width;
 		colY1 = y;
 		colY2 = y + height;
@@ -127,6 +179,7 @@ protected:
 
 public:
 	u32 clrWhite = C2D_Color32f(1,1,1,1);
+	u32 clrShadow = C2D_Color32f(0.38,0.03,0.45,0.1);
 	int colX1 = 0,colX2 = 0,colY1 = 0,colY2 = 0;
 	int x,y;
 	float speedY = 0;
@@ -135,6 +188,7 @@ public:
 
 
 	void Draw(){
+		C2D_DrawRectangle(x+3*sign(x - (SCREEN_WIDTH / 2)),y+3,0,width+2,height+2,clrShadow,clrShadow,clrShadow,clrShadow);
 		C2D_DrawRectangle(x,y,0,width,height,clrWhite,clrWhite,clrWhite,clrWhite);
 
 	}
@@ -145,20 +199,64 @@ public:
 		getCollisionPoints();
 	}
 
+	int sign(float num){
+		if(num >= 0) return 1;
+		else return -1;
+	}
 };
 
 class CpuPaddle: public Paddle{
 	public:
 	float speedDegredation = 0;
-	void UpdatePosition(int ballPosition){
-		if (ballPosition < y) {// if ball is higher
-			speedY = -3.3 + speedDegredation;
+
+	enum IdleStates{
+		STAY,
+		MOVE_UP,
+		MOVE_DOWN
+	};
+	
+	IdleStates state = STAY;
+	int stateTimer = 15;
+
+	void UpdatePosition(int ballPosition,float ballSpeed){
+		if (ballSpeed >0){
+		if (ballPosition < y + (height / 2)) {// if ball is higher
+			speedY = -3.6 + speedDegredation;
 		}
-		else speedY = 3.3 - speedDegredation;
+		else speedY = 3.6 - speedDegredation;
 		y += speedY;
 		CheckPosition();
 		getCollisionPoints();
 	}
+	else IdleMovement();
+		
+
+
+}
+void IdleMovement(){
+	//printf("\x1b[3;1 \n %i",state);
+if(stateTimer > 0){
+	if (state == MOVE_UP){
+		speedY = -3.6 + speedDegredation;
+		stateTimer -= 2;
+	}
+	if (state == MOVE_DOWN){
+		speedY = 3.6 - speedDegredation;
+		stateTimer -= 2;
+	}
+	y += speedY;
+	CheckPosition();
+	getCollisionPoints();
+}
+else{
+	stateTimer = rand() % 30;
+	if(rand() % 2 == 0) state = MOVE_UP;
+	else if(rand() % 2 == 0) state = MOVE_DOWN;
+	else state = STAY;
+}
+stateTimer -= 1;
+}
+
 
 };
 
@@ -170,8 +268,15 @@ class GameManager{
 	void Reset(Paddle* player,CpuPaddle* cpu,Ball* ball,int playerScore, int opScore){
 		ball->x = SCREEN_WIDTH / 2;
 		ball->y = SCREEN_HEIGHT / 2;
-		ball->speedX = 3;
-		ball->speedY = 3;
+		if (rand() % 10 >= 5){
+			ball->speedX = 3;
+			ball->speedY = 3;
+		}
+		else{
+			ball->speedX = -3;
+		ball->speedY = -3;
+		}
+		
 		ball->radius = 10;
 				// create Player Paddle
 		player->x = 15;
@@ -188,11 +293,13 @@ class GameManager{
 
 
 
+
 int main(int argc, char* argv[])
 {
 	romfsInit(); // loads the filesystem
 	cfguInit(); // Load Text Font Loading System
 	gfxInitDefault(); // loads graphics
+	ndspInit(); // loads audio
 	C3D_Init(C3D_DEFAULT_CMDBUF_SIZE);
 	C2D_Init(C2D_DEFAULT_MAX_OBJECTS);
 	C2D_Prepare();
@@ -201,18 +308,24 @@ int main(int argc, char* argv[])
 
 	// Create Screens
 	C3D_RenderTarget* top = C2D_CreateScreenTarget(GFX_TOP,GFX_LEFT);
+	C3D_RenderTarget* bottom = C2D_CreateScreenTarget(GFX_BOTTOM,GFX_LEFT);
+
+	//init sprites
+	spriteSheet = C2D_SpriteSheetLoad("romfs:/gfx/sprites.t3x");
+	if (!spriteSheet) svcBreak(USERBREAK_PANIC);
 
 	// colors
 	u32 clrClear = C2D_Color32f(0.83,0.45,0.35,1);
 
 	int yourScore = 0;
 	int opScore = 0;
+	bool gameStarted = false;
 
-	Console* console = new Console(GFX_TOP);
+	initSprite(1);
+
+
+	//Console* console = new Console(GFX_TOP);
 	
-	//OggAudioPlayer *soundTest = new OggAudioPlayer("romfs:/sample.ogg");
-	//soundTest->play();
-
 	//Create Objects
 	Ball ball;
 	Paddle player;
@@ -221,8 +334,6 @@ int main(int argc, char* argv[])
 	player.clrWhite = C2D_Color32f(0.35,0.55,0.89,1);
 
 	u32 clrWhite = C2D_Color32f(0.94,0.9,0.89,1);
-	u32 clrGreen = C2D_Color32f(0.54,0.65,0.35,1);
-	u32 clrRed = C2D_Color32f(0.45,0.14,0.03,1);
 
 	
 	// init the text
@@ -243,24 +354,20 @@ int main(int argc, char* argv[])
 		if (keyJustPressed & KEY_START) break;
 		// printf("\x1b[1;1HYour Score = %i",yourScore);
 		// printf("\x1b[2;1 \nOpponent Score = %i",opScore);
-
 		// printf("\x1b[3;1 \nBall Speed = %f",ball.speedY);
-		// printf("\x1b[3;1 \nOpponent Speed = %f",cpu.speedDegredation);
-
-
+		//printf("\x1b[3;1 \nis playing = %i, is loaded = %i",soundTest->isPlaying(),soundTest->isLoaded());
 
 		// Render Scene
 		C3D_FrameBegin(C3D_FRAME_SYNCDRAW);
 		C2D_TargetClear(top,clrClear);
 		C2D_SceneBegin(top);
 
+		C2D_DrawSprite(&sprites[1].spr);
+
 		// create middle line
 		C2D_DrawLine(SCREEN_WIDTH / 2,0,clrWhite,SCREEN_WIDTH/2,SCREEN_HEIGHT,clrWhite,3,0);
 
-		ball.UpdatePosition();
-		ball.Draw();
-		ball.CheckCollision(player.colX1,player.colX2,player.colY1,player.colY2);
-		ball.CheckCollision(cpu.colX1,cpu.colX2,cpu.colY1,cpu.colY2);
+
 		if (ball.scored){
 			if (ball.x + ball.radius >= SCREEN_WIDTH ){
 				yourScore += 1;
@@ -279,26 +386,39 @@ int main(int argc, char* argv[])
 		player.Draw();
 		player.speedY = 0;
 
+		
+
+		cpu.UpdatePosition(ball.y,ball.speedX);
+		cpu.Draw();
+
+		ball.UpdatePosition();
+		ball.CheckCollision(player.colX1,player.colX2,player.colY1,player.colY2);
+		ball.CheckCollision(cpu.colX1,cpu.colX2,cpu.colY1,cpu.colY2);
+		ball.Draw();
+		
 		// slow down the enemy ball so the player can actually win 😟
 		if(ball.enemyHit){
 			cpu.speedDegredation += 0.025 + (0.025 * (rand() % 6));
+			ball.enemyHit = false;
 		}
 
-		cpu.UpdatePosition(ball.y);
-		cpu.Draw();
 
 		// aaaaand hi text!
 		renderText();
 
 		C3D_FrameEnd(0);
+
+
 	}
 
 
 
 	// Deinit libs
+	C2D_SpriteSheetFree(spriteSheet); // delete sprites
 	freeText(); // kill text
 	C2D_Fini();
 	C3D_Fini();
+	ndspExit(); // unload audio
 	romfsExit(); // unload the filesystem
 	cfguExit(); // i think kills text
 	gfxExit();
