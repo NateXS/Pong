@@ -15,18 +15,24 @@ using namespace std;
 #define MAX_PARTICLES 100
 
 
-// idk what this does i just copied n pasted this from an example so both screens could work
-#define DISPLAY_TRANSFER_FLAGS \
-	(GX_TRANSFER_FLIP_VERT(0) | GX_TRANSFER_OUT_TILED(0) | GX_TRANSFER_RAW_COPY(0) | \
-	GX_TRANSFER_IN_FORMAT(GX_TRANSFER_FMT_RGBA8) | GX_TRANSFER_OUT_FORMAT(GX_TRANSFER_FMT_RGB8) | \
-	GX_TRANSFER_SCALING(GX_TRANSFER_SCALE_NO))
-
 // C:/Users/Wiz/Documents/CodingProjects/20GamesChallenge/Pong
 
 // time for text rendering!! 😋
 C2D_TextBuf StaticTextBuffer;
-C2D_Text StaticText[2];
+//C2D_Text StaticText[3];
 C2D_Font font;
+
+typedef struct{
+
+C2D_Text StaticText;
+float x;
+float y;
+float scale = 1.5;
+
+}TextClass;
+
+#define MAX_TEXT 3
+static TextClass Text[MAX_TEXT];
 
 static void textInit(){
 
@@ -35,28 +41,33 @@ static void textInit(){
 }
 
 
-static void textParse(int score1,int score2){
 
-	 // convert the numbers to text 😋
-	string str1 = to_string(score1);
-	string str2 = to_string(score2);
-	// convert the c++ string into c strings.. 🤒
-	const char* text1 = str1.c_str();
-	const char* text2 = str2.c_str();
+static void textParse(string txt,TextClass* staticText,float x = 0,float y = 0,float scale = 1.5){
 
-	C2D_TextFontParse(&StaticText[0],font,StaticTextBuffer,text1);
-	C2D_TextFontParse(&StaticText[1],font,StaticTextBuffer,text2);
-	
+	// convert the c++ string into a c string.. 🤒
+	const char* text1 = txt.c_str();
+
+	C2D_TextFontParse(&staticText->StaticText,font,StaticTextBuffer,text1);
 
 	// optimize
-	C2D_TextOptimize(&StaticText[0]);
-	C2D_TextOptimize(&StaticText[1]);
+	C2D_TextOptimize(&staticText->StaticText);
+
+	staticText->x = x;
+	staticText->y = y;
+	staticText->scale = scale;
+
 
 }
 
 static void renderText(){
-	C2D_DrawText(&StaticText[0],0,(SCREEN_WIDTH / 2.0f) - (SCREEN_WIDTH / 4.0f),8.0f,0,1.5,1.5);
-	C2D_DrawText(&StaticText[1],0,(SCREEN_WIDTH / 2.0f) + (SCREEN_WIDTH / 4.0f),8.0f,0,1.5,1.5);
+
+	for(int i=0;i<MAX_TEXT;i++){
+		TextClass txt = Text[i];
+		C2D_DrawText(&txt.StaticText,0,txt.x,txt.y,0,txt.scale,txt.scale);
+	}
+
+	//C2D_DrawText(&StaticText[0],0,(SCREEN_WIDTH / 2.0f) - (SCREEN_WIDTH / 4.0f),8.0f,0,1.5,1.5);
+	//C2D_DrawText(&StaticText[1],0,(SCREEN_WIDTH / 2.0f) + (SCREEN_WIDTH / 4.0f),8.0f,0,1.5,1.5);
 }
 
 static void freeText(){
@@ -82,7 +93,7 @@ static void initSprite(int spriteNum){
 	Sprite* sprite = &sprites[spriteNum];
 	//load sprite
 	C2D_SpriteFromSheet(&sprite->spr,spriteSheet,spriteNum);
-	//C2D_SpriteSetCenter(&sprite->spr, 0.5f, 0.5f);
+	C2D_SpriteSetCenter(&sprite->spr, 0.0f, 0.0f);
 	C2D_SpriteSetPos(&sprite->spr,0,0);
 
 }
@@ -102,6 +113,7 @@ float size = 8;
 
 void init(){
 	speedX = rand() % 10, speedY = rand() % 10 *-1;
+	r=0.81,g=0.07,b=0.07;
 }
 
 void updatePosition(){
@@ -255,7 +267,7 @@ protected:
 	}
 
 public:
-	u32 clrWhite = C2D_Color32f(1,1,1,1);
+	u32 clrWhite = C2D_Color32f(0.52,0.22,0.16,1);
 	u32 clrShadow = C2D_Color32f(0.38,0.03,0.45,0.1);
 	int colX1 = 0,colX2 = 0,colY1 = 0,colY2 = 0;
 	int x,y;
@@ -365,7 +377,8 @@ class GameManager{
 		cpu->speedDegredation = 0;
 		cpu->speed = 3.6;
 		ball->boost = 0.5;
-		textParse(playerScore,opScore);
+		textParse(to_string(playerScore),&Text[0],(SCREEN_WIDTH / 2.0f) - (SCREEN_WIDTH / 4.0f),8.0f);
+		textParse(to_string(opScore),&Text[1],(SCREEN_WIDTH / 2.0f) + (SCREEN_WIDTH / 4.0f),8.0f);
 	}
 
 
@@ -391,9 +404,9 @@ int main(int argc, char* argv[])
 
 	// Create  both top and bottom screens
 	// C3D_RenderTarget* top = C3D_RenderTargetCreate(240, 400, GPU_RB_RGBA8, GPU_RB_DEPTH24_STENCIL8);
-	C3D_RenderTargetSetOutput(top, GFX_TOP, GFX_LEFT, DISPLAY_TRANSFER_FLAGS);
+	//C3D_RenderTargetSetOutput(top, GFX_TOP, GFX_LEFT, DISPLAY_TRANSFER_FLAGS);
 	// C3D_RenderTarget* bottom = C3D_RenderTargetCreate(240, 320, GPU_RB_RGBA8, GPU_RB_DEPTH24_STENCIL8);
-	C3D_RenderTargetSetOutput(bottom, GFX_BOTTOM, GFX_LEFT, DISPLAY_TRANSFER_FLAGS);
+	//C3D_RenderTargetSetOutput(bottom, GFX_BOTTOM, GFX_LEFT, DISPLAY_TRANSFER_FLAGS);
 
 	//init sprites
 	spriteSheet = C2D_SpriteSheetLoad("romfs:/gfx/sprites.t3x");
@@ -423,6 +436,7 @@ int main(int argc, char* argv[])
 	
 	// init the text
 	textInit();
+	textParse("press any button to start",&Text[2],48,SCREEN_HEIGHT - 32,1);
 
 	gameManager.Reset(&player,&cpu,&ball,yourScore,opScore);
 
@@ -457,6 +471,7 @@ int main(int argc, char* argv[])
 			if(keyJustPressed){
 				gameStarted = true;
 				gameManager.Reset(&player,&cpu,&ball,yourScore,opScore);
+				textParse("",&Text[2],0,0,0);
 			}
 		}
 
