@@ -58,7 +58,7 @@ static void freeText(){
 // YIPPIEE SPRITE RENDERING TIME!!! 🤯🤯🧪
 #define MAX_SPRITES 768
 
-// sprite struct
+
 typedef struct
 {
 	C2D_Sprite spr;
@@ -85,10 +85,10 @@ public:
 
 u32 clrWhite = C2D_Color32f(1,1,1,1);
 u32 clrShadow = C2D_Color32f(0.38,0.03,0.45,0.1);
-const char* phsPath = "romfs:/paddle_hit.ogg";
-const char* whsPath = "romfs:/wall_hit.ogg";
-OggAudioPlayer* paddleHitSound = new OggAudioPlayer(const_cast<char*>(phsPath));
-OggAudioPlayer* wallHitSound = new OggAudioPlayer(const_cast<char*>(whsPath));
+//const char* phsPath = "romfs:/paddle_hit.ogg";
+//const char* whsPath = "romfs:/wall_hit.ogg";
+//OggAudioPlayer* paddleHitSound = new OggAudioPlayer(const_cast<char*>(phsPath));
+//OggAudioPlayer* wallHitSound = new OggAudioPlayer(const_cast<char*>(whsPath));
 
 float x,y;
 int radius;
@@ -114,7 +114,7 @@ bool CheckCollision(int colX1,int colX2,int colY1,int colY2){
 			boost = 1.5;
 			ballHit = true;
 			UpdatePosition();
-			paddleHitSound->play();
+			//paddleHitSound->play();
 			return true;
 	}
 	return false;
@@ -134,10 +134,10 @@ void UpdatePosition(){
 	y += speedY * boost;
 	if(y + radius >= SCREEN_HEIGHT || y  - radius<= 0) {
 		speedY *= -1;
-		wallHitSound->play();
+		//wallHitSound->play();
 	}
 	if(x + radius >= SCREEN_WIDTH || x - radius <= 0) {
-		wallHitSound->play();
+		//wallHitSound->play();
 		speedX *= -1;
 		scored = true;
 		}
@@ -308,10 +308,10 @@ int main(int argc, char* argv[])
 
 	// Create Screens
 	C3D_RenderTarget* top = C2D_CreateScreenTarget(GFX_TOP,GFX_LEFT);
-	C3D_RenderTarget* bottom = C2D_CreateScreenTarget(GFX_BOTTOM,GFX_LEFT);
+	//C3D_RenderTarget* bottom = C2D_CreateScreenTarget(GFX_BOTTOM,GFX_LEFT);
 
 	//init sprites
-	spriteSheet = C2D_SpriteSheetLoad("romfs:/gfx/sprites.t3x");
+	spriteSheet = C2D_SpriteSheetLoad("romfs:/gfxx/sprites.t3x");
 	if (!spriteSheet) svcBreak(USERBREAK_PANIC);
 
 	// colors
@@ -321,7 +321,7 @@ int main(int argc, char* argv[])
 	int opScore = 0;
 	bool gameStarted = false;
 
-	initSprite(1);
+	//initSprite(1);
 
 
 	//Console* console = new Console(GFX_TOP);
@@ -362,7 +362,7 @@ int main(int argc, char* argv[])
 		C2D_TargetClear(top,clrClear);
 		C2D_SceneBegin(top);
 
-		C2D_DrawSprite(&sprites[1].spr);
+		//C2D_DrawSprite(&sprites[1].spr);
 
 		// create middle line
 		C2D_DrawLine(SCREEN_WIDTH / 2,0,clrWhite,SCREEN_WIDTH/2,SCREEN_HEIGHT,clrWhite,3,0);
@@ -414,7 +414,7 @@ int main(int argc, char* argv[])
 
 
 	// Deinit libs
-	C2D_SpriteSheetFree(spriteSheet); // delete sprites
+	//C2D_SpriteSheetFree(spriteSheet); // delete sprites
 	freeText(); // kill text
 	C2D_Fini();
 	C3D_Fini();

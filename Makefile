@@ -113,8 +113,16 @@ else
 #---------------------------------------------------------------------------------
 endif
 #---------------------------------------------------------------------------------
+ifeq ($(GFXBUILD),$(BUILD))
 
 export T3XFILES		:=	$(GFXFILES:.t3s=.t3x)
+
+else
+
+export ROMFS_T3XFILES	:=	$(patsubst %.t3s, $(GFXBUILD)/%.t3x, $(GFXFILES))
+export T3XHFILES		:=	$(patsubst %.t3s, $(BUILD)/%.h, $(GFXFILES))
+
+endif
 
 export OFILES_SOURCES 	:=	$(CPPFILES:.cpp=.o) $(CFILES:.c=.o) $(SFILES:.s=.o)
 
@@ -223,7 +231,8 @@ endef
 	@$(call shader-as,$(foreach file,$(shell cat $<),$(dir $<)$(file)))
 
 #---------------------------------------------------------------------------------
-%.t3x	%.h	:	%.t3s
+#%.t3x	%.h	:	%.t3s
+$(GFXBUILD)/%.t3x	$(BUILD)/%.h	:	%.t3s
 #---------------------------------------------------------------------------------
 	@echo $(notdir $<)
 	@tex3ds -i $< -H $*.h -d $*.d -o $(TOPDIR)/$(GFXBUILD)/$*.t3x
