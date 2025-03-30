@@ -12,6 +12,15 @@ using namespace std;
 #define SCREEN_WIDTH  400
 #define SCREEN_HEIGHT 240
 
+#define MAX_PARTICLES 100
+
+
+// idk what this does i just copied n pasted this from an example so both screens could work
+#define DISPLAY_TRANSFER_FLAGS \
+	(GX_TRANSFER_FLIP_VERT(0) | GX_TRANSFER_OUT_TILED(0) | GX_TRANSFER_RAW_COPY(0) | \
+	GX_TRANSFER_IN_FORMAT(GX_TRANSFER_FMT_RGBA8) | GX_TRANSFER_OUT_FORMAT(GX_TRANSFER_FMT_RGB8) | \
+	GX_TRANSFER_SCALING(GX_TRANSFER_SCALE_NO))
+
 // C:/Users/Wiz/Documents/CodingProjects/20GamesChallenge/Pong
 
 // time for text rendering!! 😋
@@ -73,12 +82,58 @@ static void initSprite(int spriteNum){
 	Sprite* sprite = &sprites[spriteNum];
 	//load sprite
 	C2D_SpriteFromSheet(&sprite->spr,spriteSheet,spriteNum);
-	C2D_SpriteSetCenter(&sprite->spr, 0.5f, 0.5f);
-	C2D_SpriteSetPos(&sprite->spr,SCREEN_WIDTH/2,SCREEN_HEIGHT/2);
+	//C2D_SpriteSetCenter(&sprite->spr, 0.5f, 0.5f);
+	C2D_SpriteSetPos(&sprite->spr,0,0);
 
 }
 
 
+// Particles
+static size_t numParticles = 0;
+class Particle{
+public:
+float r=0.81,g=0.07,b=0.07;
+u32 clr = C2D_Color32f(r,g,b,1);
+float x,y;
+float gravityX = 0.3, gravityY = 2;
+float speedX = rand() % 10, speedY = rand() % 10 *-1;
+int aliveTime = 60;
+float size = 8;
+
+void init(){
+	speedX = rand() % 10, speedY = rand() % 10 *-1;
+}
+
+void updatePosition(){
+
+	if (abs(speedX) >= 3.5){
+	if(speedX < 0) speedX += gravityX / 10;
+	else speedX -= gravityX / 10;
+	}
+	else speedX = 0;
+
+	speedY += gravityY / 10;
+
+	x += speedX;
+	y += speedY;
+
+	clr = C2D_Color32f(r,g,b,aliveTime / 60.0);
+
+	aliveTime --;
+	
+
+}
+
+void Draw(){
+	if (aliveTime <= 0) {
+		numParticles --;
+		return;
+	}
+	C2D_DrawTriangle(x,y,clr,x+size,y,clr,x+(size/2),y-size,clr,0);
+}
+
+};
+static Particle particles[MAX_PARTICLES];
 
 class Ball{
 public:
@@ -133,19 +188,41 @@ void UpdatePosition(){
 	x += speedX * boost;
 	y += speedY * boost;
 	if(y + radius >= SCREEN_HEIGHT || y  - radius<= 0) {
-		speedY *= -1;
+		if (y + (SCREEN_HEIGHT / 2) < 0) speedY = abs(speedY);
+		else speedY *= -1;
 		//wallHitSound->play();
 	}
 	if(x + radius >= SCREEN_WIDTH || x - radius <= 0) {
 		//wallHitSound->play();
+		size_t amount = numParticles + 20;
+		for(size_t i = numParticles;i<amount;i++){
+			Particle* ptcle = &particles[i];
+		   ptcle->aliveTime = 60;
+		   ptcle->x = x + rand() % 40 - 20;
+		   ptcle->y = y + rand() % 40 - 20;
+		   ptcle->init();
+		   //if enemy scores
+		   if(x - SCREEN_WIDTH / 2 > 0){
+			ptcle->speedX *= -1;
+		   ptcle->r = 0.4,ptcle->g = 0.69,ptcle->b = 0.83;
+		   }
+			   
+		   
+		   numParticles++;
+	   }
 		speedX *= -1;
 		scored = true;
+
+
 		}
 	
 		 if(boost > 1){
 		 	boost -= 0.015;
 		 }
 		 if(boost < 1){
+			boost += 0.015;
+		 }
+		 if(abs(boost - 1) < 0.05){
 			boost = 1;
 		 }
 
@@ -217,13 +294,14 @@ class CpuPaddle: public Paddle{
 	
 	IdleStates state = STAY;
 	int stateTimer = 15;
+	float speed = 3.6;
 
 	void UpdatePosition(int ballPosition,float ballSpeed){
 		if (ballSpeed >0){
 		if (ballPosition < y + (height / 2)) {// if ball is higher
-			speedY = -3.6 + speedDegredation;
+			speedY = -(speed) + speedDegredation;
 		}
-		else speedY = 3.6 - speedDegredation;
+		else speedY = speed - speedDegredation;
 		y += speedY;
 		CheckPosition();
 		getCollisionPoints();
@@ -237,11 +315,11 @@ void IdleMovement(){
 	//printf("\x1b[3;1 \n %i",state);
 if(stateTimer > 0){
 	if (state == MOVE_UP){
-		speedY = -3.6 + speedDegredation;
+		speedY = -(speed) + speedDegredation;
 		stateTimer -= 2;
 	}
 	if (state == MOVE_DOWN){
-		speedY = 3.6 - speedDegredation;
+		speedY = (speed) - speedDegredation;
 		stateTimer -= 2;
 	}
 	y += speedY;
@@ -285,6 +363,8 @@ class GameManager{
 		cpu->x = SCREEN_WIDTH - 15;
 		cpu->y = (SCREEN_HEIGHT / 2) - cpu->height;
 		cpu->speedDegredation = 0;
+		cpu->speed = 3.6;
+		ball->boost = 0.5;
 		textParse(playerScore,opScore);
 	}
 
@@ -303,15 +383,20 @@ int main(int argc, char* argv[])
 	C3D_Init(C3D_DEFAULT_CMDBUF_SIZE);
 	C2D_Init(C2D_DEFAULT_MAX_OBJECTS);
 	C2D_Prepare();
-	consoleInit(GFX_BOTTOM,NULL);
+	//consoleInit(GFX_BOTTOM,NULL);
 
 
-	// Create Screens
 	C3D_RenderTarget* top = C2D_CreateScreenTarget(GFX_TOP,GFX_LEFT);
-	//C3D_RenderTarget* bottom = C2D_CreateScreenTarget(GFX_BOTTOM,GFX_LEFT);
+	C3D_RenderTarget* bottom = C2D_CreateScreenTarget(GFX_BOTTOM,GFX_LEFT);
+
+	// Create  both top and bottom screens
+	// C3D_RenderTarget* top = C3D_RenderTargetCreate(240, 400, GPU_RB_RGBA8, GPU_RB_DEPTH24_STENCIL8);
+	C3D_RenderTargetSetOutput(top, GFX_TOP, GFX_LEFT, DISPLAY_TRANSFER_FLAGS);
+	// C3D_RenderTarget* bottom = C3D_RenderTargetCreate(240, 320, GPU_RB_RGBA8, GPU_RB_DEPTH24_STENCIL8);
+	C3D_RenderTargetSetOutput(bottom, GFX_BOTTOM, GFX_LEFT, DISPLAY_TRANSFER_FLAGS);
 
 	//init sprites
-	spriteSheet = C2D_SpriteSheetLoad("romfs:/gfxx/sprites.t3x");
+	spriteSheet = C2D_SpriteSheetLoad("romfs:/gfx/sprites.t3x");
 	if (!spriteSheet) svcBreak(USERBREAK_PANIC);
 
 	// colors
@@ -321,7 +406,7 @@ int main(int argc, char* argv[])
 	int opScore = 0;
 	bool gameStarted = false;
 
-	//initSprite(1);
+	initSprite(1);
 
 
 	//Console* console = new Console(GFX_TOP);
@@ -354,15 +439,27 @@ int main(int argc, char* argv[])
 		if (keyJustPressed & KEY_START) break;
 		// printf("\x1b[1;1HYour Score = %i",yourScore);
 		// printf("\x1b[2;1 \nOpponent Score = %i",opScore);
-		// printf("\x1b[3;1 \nBall Speed = %f",ball.speedY);
+		//printf("\x1b[3;1 \nBall Pos = %f",ball.y);
 		//printf("\x1b[3;1 \nis playing = %i, is loaded = %i",soundTest->isPlaying(),soundTest->isLoaded());
 
 		// Render Scene
 		C3D_FrameBegin(C3D_FRAME_SYNCDRAW);
 		C2D_TargetClear(top,clrClear);
 		C2D_SceneBegin(top);
+		//C3D_RenderTargetClear(top,C3D_CLEAR_ALL,clrClear,0);
+		//C3D_FrameDrawOn(top);
 
-		//C2D_DrawSprite(&sprites[1].spr);
+		//wait for user input on game startup
+		if(!gameStarted){
+			ball.speedX = 0;
+			ball.speedY = 0;
+			cpu.speed = 0;
+			if(keyJustPressed){
+				gameStarted = true;
+				gameManager.Reset(&player,&cpu,&ball,yourScore,opScore);
+			}
+		}
+
 
 		// create middle line
 		C2D_DrawLine(SCREEN_WIDTH / 2,0,clrWhite,SCREEN_WIDTH/2,SCREEN_HEIGHT,clrWhite,3,0);
@@ -374,13 +471,14 @@ int main(int argc, char* argv[])
 			}
 			else opScore += 1;
 			gameManager.Reset(&player,&cpu,&ball,yourScore,opScore);
+
 		}
 
 		if (keyPressed & KEY_UP){
-			player.speedY = -3;
+			player.speedY = -4.2;
 		}
 		if (keyPressed & KEY_DOWN){
-			player.speedY = 3;
+			player.speedY = 4.2;
 		}
 		player.UpdatePosition();
 		player.Draw();
@@ -398,13 +496,22 @@ int main(int argc, char* argv[])
 		
 		// slow down the enemy ball so the player can actually win 😟
 		if(ball.enemyHit){
-			cpu.speedDegredation += 0.025 + (0.025 * (rand() % 6));
+			cpu.speedDegredation += 0.025 + (0.025 * (rand() % 8));
 			ball.enemyHit = false;
+		}
+
+		for(size_t i = 0;i<numParticles;i++){
+			Particle* ptcle = &::particles[i];
+			ptcle->updatePosition();
+			ptcle->Draw();
 		}
 
 
 		// aaaaand hi text!
 		renderText();
+
+		C2D_SceneBegin(bottom);
+		C2D_DrawSprite(&sprites[1].spr);
 
 		C3D_FrameEnd(0);
 
@@ -414,7 +521,7 @@ int main(int argc, char* argv[])
 
 
 	// Deinit libs
-	//C2D_SpriteSheetFree(spriteSheet); // delete sprites
+	C2D_SpriteSheetFree(spriteSheet); // delete sprites
 	freeText(); // kill text
 	C2D_Fini();
 	C3D_Fini();
