@@ -5,8 +5,9 @@ using namespace std;
 #include <citro3d.h>
 #include <string>
 #include <cmath>
-#include "3ds-libs\include\audio\OggAudioPlayer.h"
-#include "3ds-libs/include/Console.h"
+// wow that library kind of... sucked...
+//#include "3ds-libs\include\audio\OggAudioPlayer.h"
+//#include "3ds-libs/include/Console.h"
 //#include "3ds-libs/include/renderable/Sprite.h"
 
 #define SCREEN_WIDTH  400
@@ -15,7 +16,7 @@ using namespace std;
 #define MAX_PARTICLES 100
 
 
-// C:/Users/Wiz/Documents/CodingProjects/20GamesChallenge/Pong
+// C:/Users/Wiz/Documents/CodingProjects/Pong
 
 // time for text rendering!! 😋
 C2D_TextBuf StaticTextBuffer;
@@ -84,20 +85,45 @@ typedef struct
 	C2D_Sprite spr;
 } Sprite;
 
+//all sprite sheets
 static C2D_SpriteSheet spriteSheet;
+static C2D_SpriteSheet nateSS1;
+static C2D_SpriteSheet nateSS2;
+static C2D_SpriteSheet nateSS3;
+static C2D_SpriteSheet spacSS1;
+static C2D_SpriteSheet spacSS2;
+static C2D_SpriteSheet spacSS3;
 static Sprite sprites[MAX_SPRITES];
-static size_t numSprites = MAX_SPRITES/2;
+//static size_t numSprites = MAX_SPRITES/2;
 
-static void initSprite(int spriteNum){
-	size_t numImages = C2D_SpriteSheetCount(spriteSheet);
-	Sprite* sprite = &sprites[spriteNum];
+static void initSprites(C2D_SpriteSheet sheet,float x = 0,float y = 0){
+	size_t numImages = C2D_SpriteSheetCount(sheet);
+	//Sprite* sprite = &sprites[spriteNum];
 	//load sprite
-	C2D_SpriteFromSheet(&sprite->spr,spriteSheet,spriteNum);
-	C2D_SpriteSetCenter(&sprite->spr, 0.0f, 0.0f);
-	C2D_SpriteSetPos(&sprite->spr,0,0);
+	for(size_t i=0;i<numImages;i++){
+		Sprite* sprite = &sprites[i];
+		C2D_SpriteFromSheet(&sprite->spr,sheet,i);
+		C2D_SpriteSetCenter(&sprite->spr, 0.0f, 0.0f);
+		C2D_SpriteSetPos(&sprite->spr,x,y);
+	}
+	//C2D_SpriteFromSheet(&sprite->spr,spriteSheet,spriteNum);
+	//C2D_SpriteSetCenter(&sprite->spr, 0.0f, 0.0f);
+	//C2D_SpriteSetPos(&sprite->spr,0,0);
 
 }
 
+
+static void exitGame(){
+	// Deinit libs
+	C2D_SpriteSheetFree(spriteSheet); // delete sprites
+	freeText(); // kill text
+	C2D_Fini();
+	C3D_Fini();
+	ndspExit(); // unload audio
+	romfsExit(); // unload the filesystem
+	cfguExit(); // i think kills text
+	gfxExit();
+}
 
 // Particles
 static size_t numParticles = 0;
@@ -164,6 +190,7 @@ float boost = 1;
 bool scored = false;
 bool enemyHit = false;
 bool ballHit = false;
+float speedXStore, speedYStore;
 
 bool CheckCollision(int colX1,int colX2,int colY1,int colY2){
 	// if ball gets hit by a paddle
@@ -199,6 +226,8 @@ void UpdatePosition(){
 	scored = false;
 	x += speedX * boost;
 	y += speedY * boost;
+	if(!speedX == 0)speedXStore = speedX;
+	if(!speedY == 0)speedYStore = speedY;
 	if(y + radius >= SCREEN_HEIGHT || y  - radius<= 0) {
 		if (y + (SCREEN_HEIGHT / 2) < 0) speedY = abs(speedY);
 		else speedY *= -1;
@@ -353,36 +382,53 @@ stateTimer -= 1;
 class GameManager{
 	public:
 
+	float animFPS = 15;
+	float animTick = 0;
+	int animationTimer = 0;
 
 	// you know what bro pointers are actually not that bad 😋😋
-	void Reset(Paddle* player,CpuPaddle* cpu,Ball* ball,int playerScore, int opScore){
-		ball->x = SCREEN_WIDTH / 2;
-		ball->y = SCREEN_HEIGHT / 2;
-		if (rand() % 10 >= 5){
-			ball->speedX = 3;
-			ball->speedY = 3;
-		}
-		else{
-			ball->speedX = -3;
-		ball->speedY = -3;
-		}
+	void Reset(Paddle* player,CpuPaddle* cpu,Ball* ball,int playerScore, int opScore,bool resetPositions = true){
 		
+		ball->speedX = ball->speedXStore;
+		ball->speedY = ball->speedYStore;
 		ball->radius = 10;
-				// create Player Paddle
-		player->x = 15;
-		player->y = (SCREEN_HEIGHT / 2) - (player->height / 2);
-			// create CPU Paddle
-		cpu->x = SCREEN_WIDTH - 15;
-		cpu->y = (SCREEN_HEIGHT / 2) - cpu->height;
 		cpu->speedDegredation = 0;
 		cpu->speed = 3.6;
 		ball->boost = 0.5;
 		textParse(to_string(playerScore),&Text[0],(SCREEN_WIDTH / 2.0f) - (SCREEN_WIDTH / 4.0f),8.0f);
 		textParse(to_string(opScore),&Text[1],(SCREEN_WIDTH / 2.0f) + (SCREEN_WIDTH / 4.0f),8.0f);
+
+		if(resetPositions){
+			if (rand() % 10 >= 5){
+				ball->speedX = 3;
+				ball->speedY = 3;
+			}
+			else{
+				ball->speedX = -3;
+			ball->speedY = -3;
+			}
+		ball->x = SCREEN_WIDTH / 2;
+		ball->y = SCREEN_HEIGHT / 2;
+		player->x = 15;
+		player->y = (SCREEN_HEIGHT / 2) - (player->height / 2);
+		cpu->x = SCREEN_WIDTH - 15;
+		cpu->y = (SCREEN_HEIGHT / 2) - cpu->height;
+	}
+	}
+
+	bool TickAnimation(){
+		if (animTick <= 0){
+			animTick = 60.0 / animFPS;
+			return true;
+		}
+		animationTimer --;
+		animTick --;
+		return false;
 	}
 
 
 };
+
 
 
 
@@ -398,11 +444,11 @@ int main(int argc, char* argv[])
 	C2D_Prepare();
 	//consoleInit(GFX_BOTTOM,NULL);
 
-
+	// Create  both top and bottom screens
 	C3D_RenderTarget* top = C2D_CreateScreenTarget(GFX_TOP,GFX_LEFT);
 	C3D_RenderTarget* bottom = C2D_CreateScreenTarget(GFX_BOTTOM,GFX_LEFT);
 
-	// Create  both top and bottom screens
+	
 	// C3D_RenderTarget* top = C3D_RenderTargetCreate(240, 400, GPU_RB_RGBA8, GPU_RB_DEPTH24_STENCIL8);
 	//C3D_RenderTargetSetOutput(top, GFX_TOP, GFX_LEFT, DISPLAY_TRANSFER_FLAGS);
 	// C3D_RenderTarget* bottom = C3D_RenderTargetCreate(240, 320, GPU_RB_RGBA8, GPU_RB_DEPTH24_STENCIL8);
@@ -411,15 +457,45 @@ int main(int argc, char* argv[])
 	//init sprites
 	spriteSheet = C2D_SpriteSheetLoad("romfs:/gfx/sprites.t3x");
 	if (!spriteSheet) svcBreak(USERBREAK_PANIC);
+	nateSS1 = C2D_SpriteSheetLoad("romfs:/gfx/Nate1.t3x");
+	if (!nateSS1) svcBreak(USERBREAK_PANIC);
+	nateSS2 = C2D_SpriteSheetLoad("romfs:/gfx/Nate2.t3x");
+	if (!nateSS2) svcBreak(USERBREAK_PANIC);
+	nateSS3 = C2D_SpriteSheetLoad("romfs:/gfx/Nate3.t3x");
+	if (!nateSS3) svcBreak(USERBREAK_PANIC);
+	spacSS1 = C2D_SpriteSheetLoad("romfs:/gfx/Spac1.t3x");
+	if (!spacSS1) svcBreak(USERBREAK_PANIC);
+	spacSS2 = C2D_SpriteSheetLoad("romfs:/gfx/Spac2.t3x");
+	if (!spacSS2) svcBreak(USERBREAK_PANIC);
+	spacSS3 = C2D_SpriteSheetLoad("romfs:/gfx/Spac3.t3x");
+	if (!spacSS3) svcBreak(USERBREAK_PANIC);
+	// initSprites(nateSS1,(SCREEN_WIDTH / 2)-40);
+	// initSprites(nateSS2,(SCREEN_WIDTH / 2)-40);
+	// initSprites(nateSS3,(SCREEN_WIDTH / 2)-40);
+	// initSprites(spacSS1);
+	// initSprites(spacSS2);
+	// initSprites(spacSS3);
 
 	// colors
 	u32 clrClear = C2D_Color32f(0.83,0.45,0.35,1);
+	u32 clrWhite = C2D_Color32f(0.94,0.9,0.89,1);
+	u32 clrBlack = C2D_Color32f(0,0,0,1);
 
 	int yourScore = 0;
 	int opScore = 0;
+	int animationFrame = 0;
+	
 	bool gameStarted = false;
+	bool paused = false;
+	enum animStates{
+		STATE_HAPPY = 6,
+		STATE_NORMAL = 0,
+		STATE_SAD = 3
+	};
+	animStates nateState = STATE_NORMAL;
+	animStates spacState = STATE_NORMAL;
 
-	initSprite(1);
+	
 
 
 	//Console* console = new Console(GFX_TOP);
@@ -431,7 +507,7 @@ int main(int argc, char* argv[])
 	GameManager gameManager;
 	player.clrWhite = C2D_Color32f(0.35,0.55,0.89,1);
 
-	u32 clrWhite = C2D_Color32f(0.94,0.9,0.89,1);
+
 
 	
 	// init the text
@@ -439,7 +515,7 @@ int main(int argc, char* argv[])
 	textParse("press any button to start",&Text[2],48,SCREEN_HEIGHT - 32,1);
 
 	gameManager.Reset(&player,&cpu,&ball,yourScore,opScore);
-
+	
 
 
 
@@ -450,7 +526,16 @@ int main(int argc, char* argv[])
 		hidScanInput();
 		u32 keyJustPressed = hidKeysDown();
 		u32 keyPressed = hidKeysHeld();
-		if (keyJustPressed & KEY_START) break;
+		if (keyJustPressed & KEY_START){
+			if (paused || !gameStarted) break;
+			while(keyJustPressed){
+				paused = true;
+				hidScanInput();
+				keyJustPressed = hidKeysDown();
+			}
+			textParse("Paused. press start again to exit.",&Text[2],5,SCREEN_HEIGHT - 32,1);
+			gameStarted = false;
+		}
 		// printf("\x1b[1;1HYour Score = %i",yourScore);
 		// printf("\x1b[2;1 \nOpponent Score = %i",opScore);
 		//printf("\x1b[3;1 \nBall Pos = %f",ball.y);
@@ -459,6 +544,7 @@ int main(int argc, char* argv[])
 		// Render Scene
 		C3D_FrameBegin(C3D_FRAME_SYNCDRAW);
 		C2D_TargetClear(top,clrClear);
+		C2D_TargetClear(bottom,clrClear);
 		C2D_SceneBegin(top);
 		//C3D_RenderTargetClear(top,C3D_CLEAR_ALL,clrClear,0);
 		//C3D_FrameDrawOn(top);
@@ -468,12 +554,16 @@ int main(int argc, char* argv[])
 			ball.speedX = 0;
 			ball.speedY = 0;
 			cpu.speed = 0;
+			if (keyJustPressed & KEY_START & paused) exitGame();
 			if(keyJustPressed){
 				gameStarted = true;
-				gameManager.Reset(&player,&cpu,&ball,yourScore,opScore);
+				if(!paused) gameManager.Reset(&player,&cpu,&ball,yourScore,opScore);
+				else gameManager.Reset(&player,&cpu,&ball,yourScore,opScore,false);
 				textParse("",&Text[2],0,0,0);
+				paused = false;
 			}
 		}
+		
 
 
 		// create middle line
@@ -483,8 +573,18 @@ int main(int argc, char* argv[])
 		if (ball.scored){
 			if (ball.x + ball.radius >= SCREEN_WIDTH ){
 				yourScore += 1;
+				nateState = STATE_SAD;
+				spacState = STATE_HAPPY;
+				gameManager.animationTimer = 160;
 			}
-			else opScore += 1;
+			else {
+				opScore += 1;
+				nateState = STATE_HAPPY;
+				spacState = STATE_SAD;
+				gameManager.animationTimer = 160;
+				
+
+			}
 			gameManager.Reset(&player,&cpu,&ball,yourScore,opScore);
 
 		}
@@ -525,26 +625,38 @@ int main(int argc, char* argv[])
 		// aaaaand hi text!
 		renderText();
 
+		// hello bottom screen!! 🥰🥰
 		C2D_SceneBegin(bottom);
-		C2D_DrawSprite(&sprites[1].spr);
+		//initSprites(spriteSheet);
+
+		//do animation
+		if (gameManager.TickAnimation()){
+			animationFrame++;
+			animationFrame = animationFrame % 3;
+			if(gameManager.animationTimer <= 0){
+				nateState = STATE_NORMAL;
+				spacState = STATE_NORMAL;
+			}
+		}
+		//draw nate sprite
+		if(nateState == STATE_HAPPY) initSprites(nateSS3,(SCREEN_WIDTH / 2)-40);
+		if(nateState == STATE_SAD) initSprites(nateSS2,(SCREEN_WIDTH / 2)-40);
+		if(nateState == STATE_NORMAL) initSprites(nateSS1,(SCREEN_WIDTH / 2)-40);
+		C2D_DrawSprite(&sprites[animationFrame].spr);
+		//draw spac sprite
+		if(spacState == STATE_HAPPY) initSprites(spacSS3,0);
+		if(spacState == STATE_SAD) initSprites(spacSS2,0);
+		if(spacState == STATE_NORMAL) initSprites(spacSS1,0);
+		C2D_DrawSprite(&sprites[animationFrame].spr);
+		// draw middle line
+		C2D_DrawLine(160,0,clrBlack,160,SCREEN_HEIGHT,clrBlack,4,0);
 
 		C3D_FrameEnd(0);
 
 
 	}
-
-
-
-	// Deinit libs
-	C2D_SpriteSheetFree(spriteSheet); // delete sprites
-	freeText(); // kill text
-	C2D_Fini();
-	C3D_Fini();
-	ndspExit(); // unload audio
-	romfsExit(); // unload the filesystem
-	cfguExit(); // i think kills text
-	gfxExit();
-
+	
+	exitGame();
 	return 0;
 }
 

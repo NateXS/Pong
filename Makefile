@@ -36,7 +36,7 @@ include $(DEVKITARM)/3ds_rules
 3DS_LIBS_INC := $(3DS_LIBS)/include
 
 APP_TITLE := Nate Pong
-APP_DESCRIPTION := yeah. it's literally just pong. yup.
+APP_DESCRIPTION := Can YOU defeat EVIL Nate in a classic game of pong??!
 APP_AUTHOR := NateXL
 TARGET		:=	$(notdir $(CURDIR))
 BUILD		:=	build
