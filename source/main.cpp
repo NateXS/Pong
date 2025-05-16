@@ -16,7 +16,7 @@ using namespace std;
 #define MAX_PARTICLES 100
 
 
-// C:/Users/Wiz/Documents/CodingProjects/Pong
+// C:/Users/Wiz/Documents/CodingProjects/20GamesChallenge/Pong
 
 // time for text rendering!! 😋
 C2D_TextBuf StaticTextBuffer;
@@ -195,13 +195,14 @@ float speedXStore, speedYStore;
 bool CheckCollision(int colX1,int colX2,int colY1,int colY2){
 	// if ball gets hit by a paddle
 	if( (x >= colX1) && (x <= colX2) && (y >= colY1) && (y <= colY2) ){
+		if(scored)return false;
 
 		// player paddle
 		if (x < SCREEN_WIDTH / 2){
 			speedX = abs(speedX);
 		}
 		else {
-			speedX *= -1;
+			speedX = -abs(speedX);
 			enemyHit = true;
 			
 			}
