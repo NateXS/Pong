@@ -1,8 +1,8 @@
 using namespace std;
 #include <3ds.h>
-#include <stdio.h>
 #include <citro2d.h>
 #include <citro3d.h>
+#include <stdio.h>
 #include <string>
 #include <cmath>
 // wow that library kind of... sucked...
@@ -16,7 +16,6 @@ using namespace std;
 #define MAX_PARTICLES 100
 
 
-// C:/Users/Wiz/Documents/CodingProjects/20GamesChallenge/Pong
 
 // time for text rendering!! 😋
 C2D_TextBuf StaticTextBuffer;
@@ -97,8 +96,9 @@ static Sprite sprites[MAX_SPRITES];
 //static size_t numSprites = MAX_SPRITES/2;
 
 static void initSprites(C2D_SpriteSheet sheet,float x = 0,float y = 0){
+	
 	size_t numImages = C2D_SpriteSheetCount(sheet);
-	//Sprite* sprite = &sprites[spriteNum];
+
 	//load sprite
 	for(size_t i=0;i<numImages;i++){
 		Sprite* sprite = &sprites[i];
@@ -106,9 +106,6 @@ static void initSprites(C2D_SpriteSheet sheet,float x = 0,float y = 0){
 		C2D_SpriteSetCenter(&sprite->spr, 0.0f, 0.0f);
 		C2D_SpriteSetPos(&sprite->spr,x,y);
 	}
-	//C2D_SpriteFromSheet(&sprite->spr,spriteSheet,spriteNum);
-	//C2D_SpriteSetCenter(&sprite->spr, 0.0f, 0.0f);
-	//C2D_SpriteSetPos(&sprite->spr,0,0);
 
 }
 
@@ -653,6 +650,9 @@ int main(int argc, char* argv[])
 		C2D_DrawLine(160,0,clrBlack,160,SCREEN_HEIGHT,clrBlack,4,0);
 
 		C3D_FrameEnd(0);
+
+
+
 
 
 	}
